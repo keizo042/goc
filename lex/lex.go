@@ -1,11 +1,37 @@
 package lex
 
 import (
+	"fmt"
 	"unicode"
 	"unicode/utf8"
 )
 
 type ItemType int64
+
+func (i ItemType) String() string {
+	switch i {
+	case ItemEOF:
+		return "EOF"
+	case ItemDigit:
+		return "Digit"
+	case ItemPlus:
+		return "Plus"
+	case ItemMinus:
+		return "Minus"
+	case ItemDiv:
+		return "Div"
+	case ItemMulti:
+		return "Multi"
+	case ItemParenL:
+		return "ParenL"
+	case ItemParenR:
+		return "ParenR"
+	case ItemIdent:
+		return "Ident"
+	default:
+		return fmt.Sprintf("unknown:%d", i)
+	}
+}
 
 type stateFn func(*Lexer) stateFn
 
@@ -29,6 +55,10 @@ type Item struct {
 	err   error
 }
 
+func (i Item) String() string {
+	return fmt.Sprintf("{type:%s\t,token:\"%s\"\t,pos:%d\t,line:%d}", i.Typ, i.Token, i.pos, i.line)
+}
+
 // Lexer is a Lexical anaysis state Machine. it is recommended to run as gorutine.
 type Lexer struct {
 	// Items is reciever
@@ -40,7 +70,6 @@ type Lexer struct {
 	start uint64
 	pos   uint64
 	width uint64
-	chr   rune
 
 	size uint64
 	line uint64
@@ -58,12 +87,16 @@ func New(src string) *Lexer {
 		width: 0,
 
 		size: uint64(len(src)),
-		line: 0,
+		line: 1,
 	}
 }
 
+func (l *Lexer) Wait() {
+	<-l.Done
+}
+
 func (l *Lexer) Lex() {
-	l.lex()
+	go l.lex()
 }
 
 func (l *Lexer) lex() {
@@ -71,52 +104,37 @@ func (l *Lexer) lex() {
 	for l.state != nil {
 		l.state = l.state(l)
 	}
+	l.Done <- true
 
 }
 
 func (l *Lexer) eof() bool {
-	return l.start >= l.size
+	return l.pos >= l.size
 }
 
 func (l *Lexer) next() rune {
-	r, s := utf8.DecodeRuneInString(l.src[l.start+l.pos:])
+	r, s := utf8.DecodeRuneInString(l.src[l.pos:])
+	l.pos += uint64(l.width)
 	l.width = uint64(s)
-	l.chr = r
-	l.pos += uint64(s)
 	return r
 }
 
-func (l *Lexer) peek() rune {
-	return l.chr
-}
-
-func (l *Lexer) backup() rune {
-	if l.pos <= 0 {
-		l.start -= l.width
-	} else {
-		l.pos -= l.width
-	}
-	r, s := utf8.DecodeRuneInString(l.src[l.start+l.pos:])
-
-	l.width = uint64(s)
-	l.chr = r
-	return r
+func (l *Lexer) backup() {
+	l.pos -= l.width
 }
 
 func (l *Lexer) emit(typ ItemType) {
 	if typ == ItemEOF {
 		l.Items <- Item{Typ: typ}
-		l.Done <- true
 		return
 	}
-	token := l.src[l.start : l.start+l.pos]
-	l.start += l.pos
-	l.pos = 0
+	token := l.src[l.start:l.pos]
+	l.start = l.pos
 	l.Items <- Item{
 		Token: token,
 		Typ:   typ,
 		line:  l.line,
-		pos:   int64(l.start % l.line),
+		pos:   int64(l.pos % l.line),
 	}
 
 }
@@ -130,14 +148,16 @@ func lexText(l *Lexer) stateFn {
 		}
 		switch c {
 		case ' ', '\t':
+			l.start = l.pos
 		case '\n':
+			l.start = l.pos
 			l.line++
 		case '+':
 			l.emit(ItemPlus)
 		case '-':
 			l.emit(ItemMinus)
 		case '*':
-			l.emit(ItemMinus)
+			l.emit(ItemMulti)
 		case '/':
 			l.emit(ItemDiv)
 		case '(':
@@ -180,6 +200,7 @@ func lexDigit(l *Lexer) stateFn {
 	for {
 		c := l.next()
 		if !unicode.IsDigit(c) {
+			l.backup()
 			break
 		}
 

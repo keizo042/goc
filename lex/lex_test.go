@@ -4,11 +4,23 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 )
 
+func min(l, r int) int {
+	if l > r {
+		return r
+	} else {
+		return l
+	}
+}
+
 func compare(l, r []Item) (int, bool) {
-	for i := 0; ; i++ {
+	l0 := len(l)
+	r0 := len(r)
+	if l0 != r0 {
+		return min(l0, r0), false
+	}
+	for i := 0; i < l0; i++ {
 		lval := l[i]
 		rval := r[i]
 		if lval.Typ != rval.Typ {
@@ -16,9 +28,6 @@ func compare(l, r []Item) (int, bool) {
 		}
 		if lval.Token != rval.Token {
 			return i, false
-		}
-		if lval.Typ == ItemEOF || rval.Typ == ItemEOF {
-			break
 		}
 	}
 	return 0, true
@@ -38,21 +47,6 @@ func i(src string) (string, error) {
 
 }
 
-func consume(t *testing.T, s string, l *Lexer) []Item {
-	var elems []Item
-	for {
-		select {
-		case e := <-l.Items:
-			elems = append(elems, e)
-		case <-time.After(1 * time.Second):
-			t.Fatal("too late processing")
-			return nil
-		}
-
-	}
-	return elems
-}
-
 var testsrc = []string{
 	"./testdata/test000.calc",
 	"./testdata/test001.calc",
@@ -64,36 +58,54 @@ var testsrc = []string{
 
 func TestLex000(t *testing.T) {
 	s, err := i(testsrc[0])
+	var actual []Item
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	var actual []Item
+	lexer.Lex()
 	go func() {
-		actual = consume(t, testsrc[0], lexer)
+		for {
+			select {
+			case e := <-lexer.Items:
+				actual = append(actual, e)
+			}
+
+		}
 	}()
 	<-lexer.Done
 
 	expect := []Item{
-		Item{Token: "(", Typ: ItemParenL},
-		Item{Token: "1", Typ: ItemDigit},
-		Item{Token: "+", Typ: ItemPlus},
-		Item{Token: "2", Typ: ItemDigit},
-		Item{Token: ")", Typ: ItemParenR},
-		Item{Token: "*", Typ: ItemMulti},
-		Item{Token: "2", Typ: ItemDigit},
-		Item{Token: "+", Typ: ItemPlus},
-		Item{Token: "(", Typ: ItemParenL},
-		Item{Token: "4", Typ: ItemDigit},
-		Item{Token: "/", Typ: ItemDiv},
-		Item{Token: "2", Typ: ItemDigit},
-		Item{Token: ")", Typ: ItemParenR},
-		Item{Token: "", Typ: ItemEOF},
+		Item{Token: "(", Typ: ItemParenL, line: 1},
+		Item{Token: "1", Typ: ItemDigit, line: 1},
+		Item{Token: "+", Typ: ItemPlus, line: 1},
+		Item{Token: "2", Typ: ItemDigit, line: 1},
+		Item{Token: ")", Typ: ItemParenR, line: 1},
+		Item{Token: "*", Typ: ItemMulti, line: 1},
+		Item{Token: "2", Typ: ItemDigit, line: 1},
+		Item{Token: "+", Typ: ItemPlus, line: 1},
+		Item{Token: "(", Typ: ItemParenL, line: 1},
+		Item{Token: "4", Typ: ItemDigit, line: 1},
+		Item{Token: "/", Typ: ItemDiv, line: 1},
+		Item{Token: "2", Typ: ItemDigit, line: 1},
+		Item{Token: ")", Typ: ItemParenR, line: 1},
+		Item{Token: "", Typ: ItemEOF, line: 2},
 	}
 
-	i, b := compare(actual, expect)
+	i, b := compare(expect, actual)
 	if !b {
-		t.Errorf("fail! expected:%v, actual:%v", expect[i], actual[i])
+		if i < 0 {
+			t.Errorf("fail! expected:%v\n", expect)
+		} else {
+			t.Errorf("fail! error %d\n", i)
+			for i, e := range expect {
+				t.Errorf("expect:%d\t, %s", i+1, e)
+			}
+			t.Error("")
+			for i, e := range actual {
+				t.Errorf("actual:%d\t, %s", i+1, e)
+			}
+		}
 	}
 
 }
@@ -104,13 +116,36 @@ func TestLex001(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	actual := consume(t, testsrc[1], lexer)
+	var actual []Item
+	lexer.Lex()
+	go func() {
+		for {
+			select {
+			case e := <-lexer.Items:
+				actual = append(actual, e)
+			}
+
+		}
+	}()
+	<-lexer.Done
 	expect := []Item{
+		Item{Token: "100", Typ: ItemDigit},
 		Item{Token: "", Typ: ItemEOF},
 	}
-	n, b := compare(expect, actual)
-	if b {
-		t.Error(n)
+	i, b := compare(expect, actual)
+	if !b {
+		if i < 0 {
+			t.Errorf("fail! expected:%v\n", expect)
+		} else {
+			t.Errorf("fail! error %d\n", i)
+			for i, e := range expect {
+				t.Errorf("expect:%d\t, %s", i+1, e)
+			}
+			t.Error("")
+			for i, e := range actual {
+				t.Errorf("actual:%d\t, %s", i+1, e)
+			}
+		}
 	}
 
 }
@@ -120,14 +155,40 @@ func TestLex002(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	var actual []Item
 	lexer := New(s)
-	actual := consume(t, testsrc[2], lexer)
 	expect := []Item{
+		Item{Token: "1", Typ: ItemDigit},
+		Item{Token: "+", Typ: ItemPlus},
+		Item{Token: "2", Typ: ItemDigit},
 		Item{Token: "", Typ: ItemEOF},
 	}
-	n, b := compare(expect, actual)
-	if b {
-		t.Error(n)
+
+	lexer.Lex()
+	go func() {
+		for {
+			select {
+			case e := <-lexer.Items:
+				actual = append(actual, e)
+			}
+
+		}
+	}()
+	<-lexer.Done
+	i, b := compare(expect, actual)
+	if !b {
+		if i < 0 {
+			t.Errorf("fail! expected:%v\n", expect)
+		} else {
+			t.Errorf("fail! error %d\n", i)
+			for i, e := range expect {
+				t.Errorf("expect:%d\t, %s", i+1, e)
+			}
+			t.Error("")
+			for i, e := range actual {
+				t.Errorf("actual:%d\t, %s", i+1, e)
+			}
+		}
 	}
 }
 
@@ -137,13 +198,36 @@ func TestLex003(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	actual := consume(t, testsrc[3], lexer)
 	expect := []Item{
+		Item{Token: "string", Typ: ItemEOF},
 		Item{Token: "", Typ: ItemEOF},
 	}
-	n, b := compare(expect, actual)
-	if b {
-		t.Error(n)
+	var actual []Item
+	lexer.Lex()
+	go func() {
+		for {
+			select {
+			case e := <-lexer.Items:
+				actual = append(actual, e)
+			}
+
+		}
+	}()
+	<-lexer.Done
+	i, b := compare(expect, actual)
+	if !b {
+		if i < 0 {
+			t.Errorf("fail! expected:%v\n", expect)
+		} else {
+			t.Errorf("fail! error %d\n", i)
+			for i, e := range expect {
+				t.Errorf("expect:%d\t, %s", i+1, e)
+			}
+			t.Error("")
+			for i, e := range actual {
+				t.Errorf("actual:%d\t, %s", i+1, e)
+			}
+		}
 	}
 }
 
@@ -153,13 +237,38 @@ func TestLex004(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	actual := consume(t, testsrc[4], lexer)
 	expect := []Item{
+		Item{Token: "6", Typ: ItemDigit},
+		Item{Token: "/", Typ: ItemDiv},
+		Item{Token: "2", Typ: ItemDigit},
 		Item{Token: "", Typ: ItemEOF},
 	}
-	n, b := compare(expect, actual)
-	if b {
-		t.Error(n)
+	var actual []Item
+	lexer.Lex()
+	go func() {
+		for {
+			select {
+			case e := <-lexer.Items:
+				actual = append(actual, e)
+			}
+
+		}
+	}()
+	<-lexer.Done
+	i, b := compare(expect, actual)
+	if !b {
+		if i < 0 {
+			t.Errorf("fail! expected:%v\n", expect)
+		} else {
+			t.Errorf("fail! error %d\n", i)
+			for i, e := range expect {
+				t.Errorf("expect:%d\t, %s", i+1, e)
+			}
+			t.Error("")
+			for i, e := range actual {
+				t.Errorf("actual:%d\t, %s", i+1, e)
+			}
+		}
 	}
 }
 
@@ -169,12 +278,34 @@ func TestLex005(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	actual := consume(t, testsrc[5], lexer)
+	var actual []Item
 	expect := []Item{
 		Item{Token: "", Typ: ItemEOF},
 	}
-	n, b := compare(expect, actual)
-	if b {
-		t.Error(n)
+	lexer.Lex()
+	go func() {
+		for {
+			select {
+			case e := <-lexer.Items:
+				actual = append(actual, e)
+			}
+
+		}
+	}()
+	<-lexer.Done
+	i, b := compare(expect, actual)
+	if !b {
+		if i < 0 {
+			t.Errorf("fail! expected:%v\n", expect)
+		} else {
+			t.Errorf("fail! error %d\n", i)
+			for i, e := range expect {
+				t.Errorf("expect:%d\t, %s", i+1, e)
+			}
+			t.Error("")
+			for i, e := range actual {
+				t.Errorf("actual:%d\t, %s", i+1, e)
+			}
+		}
 	}
 }
