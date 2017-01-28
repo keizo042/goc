@@ -186,6 +186,7 @@ func TestLex002(t *testing.T) {
 	}
 }
 
+/*
 func TestLex003(t *testing.T) {
 	s, err := i(testsrc[3])
 	if err != nil {
@@ -224,6 +225,7 @@ func TestLex003(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestLex004(t *testing.T) {
 	s, err := i(testsrc[4])
