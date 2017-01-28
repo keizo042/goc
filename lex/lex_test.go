@@ -14,15 +14,10 @@ func min(l, r int) int {
 	}
 }
 
-func compare(l, r []Item) (int, bool) {
-	l0 := len(l)
-	r0 := len(r)
-	if l0 != r0 {
-		return min(l0, r0), false
-	}
-	for i := 0; i < l0; i++ {
-		lval := l[i]
-		rval := r[i]
+func compare(expect, actual []Item) (int, bool) {
+	for i := 0; i < len(actual); i++ {
+		lval := expect[i]
+		rval := actual[i]
 		if lval.Typ != rval.Typ {
 			return i, false
 		}
@@ -32,7 +27,6 @@ func compare(l, r []Item) (int, bool) {
 	}
 	return 0, true
 }
-
 func i(src string) (string, error) {
 	fp, err := os.Open(src)
 	if err != nil {

@@ -114,8 +114,8 @@ func (l *Lexer) eof() bool {
 
 func (l *Lexer) next() rune {
 	r, s := utf8.DecodeRuneInString(l.src[l.pos:])
-	l.pos += uint64(l.width)
 	l.width = uint64(s)
+	l.pos += l.width
 	return r
 }
 
@@ -193,7 +193,7 @@ func lexToken(l *Lexer) stateFn {
 		l.emit(ItemIdent)
 		break
 	}
-	return nil
+	return lexText
 }
 
 func lexDigit(l *Lexer) stateFn {
