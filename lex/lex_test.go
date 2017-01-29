@@ -1,6 +1,7 @@
 package lex
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -15,15 +16,31 @@ func min(l, r int) int {
 }
 
 func compare(expect, actual []Item) (int, bool) {
-	for i := 0; i < len(actual); i++ {
+	i := 0
+	l := len(expect)
+	r := len(actual)
+	if l != r {
+		fmt.Fprintf(os.Stderr, "expect:%d,actual:%d", l, r)
+	}
+	for {
+
 		lval := expect[i]
 		rval := actual[i]
+		if lval.Typ == ItemEOF && rval.Typ == ItemEOF {
+			return 0, true
+		}
+
+		if lval.Typ == ItemEOF || rval.Typ == ItemEOF {
+			return i, false
+		}
+
 		if lval.Typ != rval.Typ {
 			return i, false
 		}
 		if lval.Token != rval.Token {
 			return i, false
 		}
+		i++
 	}
 	return 0, true
 }
@@ -58,16 +75,14 @@ func TestLex000(t *testing.T) {
 	}
 	lexer := New(s)
 	lexer.Lex()
-	go func() {
-		for {
-			select {
-			case e := <-lexer.Items:
-				actual = append(actual, e)
-			}
-
+	for {
+		e := lexer.NextItem()
+		actual = append(actual, e)
+		if e.Typ == ItemEOF {
+			break
 		}
-	}()
-	<-lexer.Done
+
+	}
 
 	expect := []Item{
 		Item{Token: "(", Typ: ItemParenL, line: 1},
@@ -85,6 +100,7 @@ func TestLex000(t *testing.T) {
 		Item{Token: ")", Typ: ItemParenR, line: 1},
 		Item{Token: "", Typ: ItemEOF, line: 2},
 	}
+	fmt.Println(len(expect))
 
 	i, b := compare(expect, actual)
 	if !b {
@@ -93,11 +109,11 @@ func TestLex000(t *testing.T) {
 		} else {
 			t.Errorf("fail! error %d\n", i)
 			for i, e := range expect {
-				t.Errorf("expect:%d\t, %s", i+1, e)
+				t.Errorf("expect:%d\t, %s", i, e)
 			}
 			t.Error("")
 			for i, e := range actual {
-				t.Errorf("actual:%d\t, %s", i+1, e)
+				t.Errorf("actual:%d\t, %s", i, e)
 			}
 		}
 	}
@@ -112,16 +128,14 @@ func TestLex001(t *testing.T) {
 	lexer := New(s)
 	var actual []Item
 	lexer.Lex()
-	go func() {
-		for {
-			select {
-			case e := <-lexer.Items:
-				actual = append(actual, e)
-			}
-
+	for {
+		e := lexer.NextItem()
+		actual = append(actual, e)
+		if e.Typ == ItemEOF {
+			break
 		}
-	}()
-	<-lexer.Done
+
+	}
 	expect := []Item{
 		Item{Token: "100", Typ: ItemDigit},
 		Item{Token: "", Typ: ItemEOF},
@@ -159,16 +173,14 @@ func TestLex002(t *testing.T) {
 	}
 
 	lexer.Lex()
-	go func() {
-		for {
-			select {
-			case e := <-lexer.Items:
-				actual = append(actual, e)
-			}
-
+	for {
+		e := lexer.NextItem()
+		actual = append(actual, e)
+		if e.Typ == ItemEOF {
+			break
 		}
-	}()
-	<-lexer.Done
+
+	}
 	i, b := compare(expect, actual)
 	if !b {
 		if i < 0 {
@@ -241,16 +253,14 @@ func TestLex004(t *testing.T) {
 	}
 	var actual []Item
 	lexer.Lex()
-	go func() {
-		for {
-			select {
-			case e := <-lexer.Items:
-				actual = append(actual, e)
-			}
-
+	for {
+		e := lexer.NextItem()
+		actual = append(actual, e)
+		if e.Typ == ItemEOF {
+			break
 		}
-	}()
-	<-lexer.Done
+
+	}
 	i, b := compare(expect, actual)
 	if !b {
 		if i < 0 {
@@ -279,16 +289,14 @@ func TestLex005(t *testing.T) {
 		Item{Token: "", Typ: ItemEOF},
 	}
 	lexer.Lex()
-	go func() {
-		for {
-			select {
-			case e := <-lexer.Items:
-				actual = append(actual, e)
-			}
-
+	for {
+		e := lexer.NextItem()
+		actual = append(actual, e)
+		if e.Typ == ItemEOF {
+			break
 		}
-	}()
-	<-lexer.Done
+
+	}
 	i, b := compare(expect, actual)
 	if !b {
 		if i < 0 {

@@ -63,7 +63,6 @@ func (i Item) String() string {
 type Lexer struct {
 	// Items is reciever
 	Items chan Item
-	Done  chan bool
 
 	state stateFn
 	src   string
@@ -78,7 +77,6 @@ type Lexer struct {
 func New(src string) *Lexer {
 	return &Lexer{
 		Items: make(chan Item, 2),
-		Done:  make(chan bool, 1),
 
 		state: lexText,
 		src:   src,
@@ -91,8 +89,14 @@ func New(src string) *Lexer {
 	}
 }
 
-func (l *Lexer) Wait() {
-	<-l.Done
+func (l *Lexer) NextItem() Item {
+	i := <-l.Items
+	return i
+}
+
+func (l *Lexer) Drain() {
+	for range l.Items {
+	}
 }
 
 func (l *Lexer) Lex() {
@@ -104,7 +108,6 @@ func (l *Lexer) lex() {
 	for l.state != nil {
 		l.state = l.state(l)
 	}
-	l.Done <- true
 
 }
 
