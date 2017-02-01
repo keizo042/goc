@@ -26,3 +26,17 @@ type BinOpExpr struct {
 	Op  Item
 	Rhs Expr
 }
+
+type Stmt interface {
+	Node
+	stmtNode()
+}
+
+type stmtNode struct {
+}
+
+func (n *stmtNode) stmtNode() {}
+
+type StmtExpr struct {
+	stmtNode
+}

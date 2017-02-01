@@ -8,12 +8,12 @@ import (
 
 %}
 
-%token<token> num
 
 %union {
     token ast.Item
 }
 
+%token<token> DIGIT STRING PLUS MINUS DIV MULTI
 
 %%
 
@@ -23,7 +23,7 @@ type Parser {
 
 }
 
-func  New(lexer *lex.Lexer) *Parser{
+func  New(lexer *lex.Lexer) *Parser {
 }
 
 func (p *Parser)Run()(*ast.Tree, error) {
