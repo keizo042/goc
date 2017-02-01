@@ -11,7 +11,7 @@ import (
 %token<token> num
 
 %union {
-    token lex.Item
+    token ast.Item
 }
 
 
