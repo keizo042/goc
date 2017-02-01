@@ -10,8 +10,19 @@ type Node interface {
 	Types() NodeType
 }
 
-type Expr interface{}
+type Expr interface {
+	Node
+	exprNode()
+}
 
-type Digit int
+type exprNode struct {
+}
 
-type String string
+func (e *exprNode) exprNode() {}
+
+type BinOpExpr struct {
+	exprNode
+	Lhs Expr
+	Op  Item
+	Rhs Expr
+}

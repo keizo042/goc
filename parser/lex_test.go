@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/keizo042/goc/ast"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -15,7 +16,7 @@ func min(l, r int) int {
 	}
 }
 
-func compare(expect, actual []Item) (int, bool) {
+func compare(expect, actual []ast.Item) (int, bool) {
 	i := 0
 	l := len(expect)
 	r := len(actual)
@@ -26,11 +27,11 @@ func compare(expect, actual []Item) (int, bool) {
 
 		lval := expect[i]
 		rval := actual[i]
-		if lval.Typ == ItemEOF && rval.Typ == ItemEOF {
+		if lval.Typ == ast.ItemEOF && rval.Typ == ast.ItemEOF {
 			return 0, true
 		}
 
-		if lval.Typ == ItemEOF || rval.Typ == ItemEOF {
+		if lval.Typ == ast.ItemEOF || rval.Typ == ast.ItemEOF {
 			return i, false
 		}
 
@@ -69,7 +70,7 @@ var testsrc = []string{
 
 func TestLex000(t *testing.T) {
 	s, err := i(testsrc[0])
-	var actual []Item
+	var actual []ast.Item
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -78,27 +79,27 @@ func TestLex000(t *testing.T) {
 	for {
 		e := lexer.NextItem()
 		actual = append(actual, e)
-		if e.Typ == ItemEOF {
+		if e.Typ == ast.ItemEOF {
 			break
 		}
 
 	}
 
-	expect := []Item{
-		Item{Token: "(", Typ: ItemParenL, line: 1},
-		Item{Token: "1", Typ: ItemDigit, line: 1},
-		Item{Token: "+", Typ: ItemPlus, line: 1},
-		Item{Token: "2", Typ: ItemDigit, line: 1},
-		Item{Token: ")", Typ: ItemParenR, line: 1},
-		Item{Token: "*", Typ: ItemMulti, line: 1},
-		Item{Token: "2", Typ: ItemDigit, line: 1},
-		Item{Token: "+", Typ: ItemPlus, line: 1},
-		Item{Token: "(", Typ: ItemParenL, line: 1},
-		Item{Token: "4", Typ: ItemDigit, line: 1},
-		Item{Token: "/", Typ: ItemDiv, line: 1},
-		Item{Token: "2", Typ: ItemDigit, line: 1},
-		Item{Token: ")", Typ: ItemParenR, line: 1},
-		Item{Token: "", Typ: ItemEOF, line: 2},
+	expect := []ast.Item{
+		ast.Item{Token: "(", Typ: ast.ItemParenL, Line: 1},
+		ast.Item{Token: "1", Typ: ast.ItemDigit, Line: 1},
+		ast.Item{Token: "+", Typ: ast.ItemPlus, Line: 1},
+		ast.Item{Token: "2", Typ: ast.ItemDigit, Line: 1},
+		ast.Item{Token: ")", Typ: ast.ItemParenR, Line: 1},
+		ast.Item{Token: "*", Typ: ast.ItemMulti, Line: 1},
+		ast.Item{Token: "2", Typ: ast.ItemDigit, Line: 1},
+		ast.Item{Token: "+", Typ: ast.ItemPlus, Line: 1},
+		ast.Item{Token: "(", Typ: ast.ItemParenL, Line: 1},
+		ast.Item{Token: "4", Typ: ast.ItemDigit, Line: 1},
+		ast.Item{Token: "/", Typ: ast.ItemDiv, Line: 1},
+		ast.Item{Token: "2", Typ: ast.ItemDigit, Line: 1},
+		ast.Item{Token: ")", Typ: ast.ItemParenR, Line: 1},
+		ast.Item{Token: "", Typ: ast.ItemEOF, Line: 2},
 	}
 	fmt.Println(len(expect))
 
@@ -126,19 +127,19 @@ func TestLex001(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	var actual []Item
+	var actual []ast.Item
 	lexer.Lex()
 	for {
 		e := lexer.NextItem()
 		actual = append(actual, e)
-		if e.Typ == ItemEOF {
+		if e.Typ == ast.ItemEOF {
 			break
 		}
 
 	}
-	expect := []Item{
-		Item{Token: "100", Typ: ItemDigit},
-		Item{Token: "", Typ: ItemEOF},
+	expect := []ast.Item{
+		ast.Item{Token: "100", Typ: ast.ItemDigit},
+		ast.Item{Token: "", Typ: ast.ItemEOF},
 	}
 	i, b := compare(expect, actual)
 	if !b {
@@ -163,20 +164,20 @@ func TestLex002(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	var actual []Item
+	var actual []ast.Item
 	lexer := New(s)
-	expect := []Item{
-		Item{Token: "1", Typ: ItemDigit},
-		Item{Token: "+", Typ: ItemPlus},
-		Item{Token: "2", Typ: ItemDigit},
-		Item{Token: "", Typ: ItemEOF},
+	expect := []ast.Item{
+		ast.Item{Token: "1", Typ: ast.ItemDigit},
+		ast.Item{Token: "+", Typ: ast.ItemPlus},
+		ast.Item{Token: "2", Typ: ast.ItemDigit},
+		ast.Item{Token: "", Typ: ast.ItemEOF},
 	}
 
 	lexer.Lex()
 	for {
 		e := lexer.NextItem()
 		actual = append(actual, e)
-		if e.Typ == ItemEOF {
+		if e.Typ == ast.ItemEOF {
 			break
 		}
 
@@ -205,11 +206,11 @@ func TestLex003(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	expect := []Item{
-		Item{Token: "string", Typ: ItemEOF},
-		Item{Token: "", Typ: ItemEOF},
+	expect := []ast.Item{
+		ast.Item{Token: "string", Typ: ast.ItemEOF},
+		ast.Item{Token: "", Typ: ast.ItemEOF},
 	}
-	var actual []Item
+	var actual []ast.Item
 	lexer.Lex()
 	go func() {
 		for {
@@ -245,18 +246,18 @@ func TestLex004(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	expect := []Item{
-		Item{Token: "6", Typ: ItemDigit},
-		Item{Token: "/", Typ: ItemDiv},
-		Item{Token: "2", Typ: ItemDigit},
-		Item{Token: "", Typ: ItemEOF},
+	expect := []ast.Item{
+		ast.Item{Token: "6", Typ: ast.ItemDigit},
+		ast.Item{Token: "/", Typ: ast.ItemDiv},
+		ast.Item{Token: "2", Typ: ast.ItemDigit},
+		ast.Item{Token: "", Typ: ast.ItemEOF},
 	}
-	var actual []Item
+	var actual []ast.Item
 	lexer.Lex()
 	for {
 		e := lexer.NextItem()
 		actual = append(actual, e)
-		if e.Typ == ItemEOF {
+		if e.Typ == ast.ItemEOF {
 			break
 		}
 
@@ -284,15 +285,15 @@ func TestLex005(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	lexer := New(s)
-	var actual []Item
-	expect := []Item{
-		Item{Token: "", Typ: ItemEOF},
+	var actual []ast.Item
+	expect := []ast.Item{
+		ast.Item{Token: "", Typ: ast.ItemEOF},
 	}
 	lexer.Lex()
 	for {
 		e := lexer.NextItem()
 		actual = append(actual, e)
-		if e.Typ == ItemEOF {
+		if e.Typ == ast.ItemEOF {
 			break
 		}
 

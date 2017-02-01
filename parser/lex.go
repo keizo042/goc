@@ -1,68 +1,17 @@
 package parser
 
 import (
-	"fmt"
+	"github.com/keizo042/goc/ast"
 	"unicode"
 	"unicode/utf8"
 )
 
-type ItemType int64
-
-func (i ItemType) String() string {
-	switch i {
-	case ItemEOF:
-		return "EOF"
-	case ItemDigit:
-		return "Digit"
-	case ItemPlus:
-		return "Plus"
-	case ItemMinus:
-		return "Minus"
-	case ItemDiv:
-		return "Div"
-	case ItemMulti:
-		return "Multi"
-	case ItemParenL:
-		return "ParenL"
-	case ItemParenR:
-		return "ParenR"
-	case ItemIdent:
-		return "Ident"
-	default:
-		return fmt.Sprintf("unknown:%d", i)
-	}
-}
-
 type stateFn func(*Lexer) stateFn
-
-const (
-	ItemEOF ItemType = iota + 1
-	ItemDigit
-	ItemPlus
-	ItemMinus
-	ItemDiv
-	ItemMulti
-	ItemParenL
-	ItemParenR
-	ItemIdent
-)
-
-type Item struct {
-	Typ   ItemType
-	Token string
-	line  uint64
-	pos   int64
-	err   error
-}
-
-func (i Item) String() string {
-	return fmt.Sprintf("{type:%s\t,token:\"%s\"\t,pos:%d\t,line:%d}", i.Typ, i.Token, i.pos, i.line)
-}
 
 // Lexer is a Lexical anaysis state Machine. it is recommended to run as gorutine.
 type Lexer struct {
 	// Items is reciever
-	Items chan Item
+	Items chan ast.Item
 
 	state stateFn
 	src   string
@@ -76,7 +25,7 @@ type Lexer struct {
 
 func New(src string) *Lexer {
 	return &Lexer{
-		Items: make(chan Item, 2),
+		Items: make(chan ast.Item, 2),
 
 		state: lexText,
 		src:   src,
@@ -89,7 +38,7 @@ func New(src string) *Lexer {
 	}
 }
 
-func (l *Lexer) NextItem() Item {
+func (l *Lexer) NextItem() ast.Item {
 	i := <-l.Items
 	return i
 }
@@ -126,18 +75,18 @@ func (l *Lexer) backup() {
 	l.pos -= l.width
 }
 
-func (l *Lexer) emit(typ ItemType) {
-	if typ == ItemEOF {
-		l.Items <- Item{Typ: typ}
+func (l *Lexer) emit(typ ast.ItemType) {
+	if typ == ast.ItemEOF {
+		l.Items <- ast.Item{Typ: typ}
 		return
 	}
 	token := l.src[l.start:l.pos]
 	l.start = l.pos
-	l.Items <- Item{
+	l.Items <- ast.Item{
 		Token: token,
 		Typ:   typ,
-		line:  l.line,
-		pos:   int64(l.pos % l.line),
+		Line:  l.line,
+		Pos:   int64(l.pos % l.line),
 	}
 
 }
@@ -146,7 +95,7 @@ func lexText(l *Lexer) stateFn {
 	for {
 		c := l.next()
 		if l.eof() {
-			l.emit(ItemEOF)
+			l.emit(ast.ItemEOF)
 			return nil
 		}
 		switch c {
@@ -156,17 +105,17 @@ func lexText(l *Lexer) stateFn {
 			l.start = l.pos
 			l.line++
 		case '+':
-			l.emit(ItemPlus)
+			l.emit(ast.ItemPlus)
 		case '-':
-			l.emit(ItemMinus)
+			l.emit(ast.ItemMinus)
 		case '*':
-			l.emit(ItemMulti)
+			l.emit(ast.ItemMulti)
 		case '/':
-			l.emit(ItemDiv)
+			l.emit(ast.ItemDiv)
 		case '(':
-			l.emit(ItemParenL)
+			l.emit(ast.ItemParenL)
 		case ')':
-			l.emit(ItemParenR)
+			l.emit(ast.ItemParenR)
 		default:
 			l.backup()
 			return lexIdent
@@ -193,7 +142,7 @@ func lexToken(l *Lexer) stateFn {
 			continue
 		}
 		l.backup()
-		l.emit(ItemIdent)
+		l.emit(ast.ItemIdent)
 		break
 	}
 	return lexText
@@ -208,6 +157,6 @@ func lexDigit(l *Lexer) stateFn {
 		}
 
 	}
-	l.emit(ItemDigit)
+	l.emit(ast.ItemDigit)
 	return lexText
 }
